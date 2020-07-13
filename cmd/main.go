@@ -5,8 +5,14 @@ import (
 	"math/rand"
 	"os"
 	"runtime/trace"
+	"sync"
 	"time"
 )
+
+type Transaction struct {
+	Amount int64
+	Moment time.Time
+}
 
 func main() {
 
@@ -22,48 +28,46 @@ func main() {
 	}
 	defer trace.Stop()
 
-	type transaction struct {
-		Amount int64
-		Moment time.Time
-	}
-
-	const amountOfTransactions = 10
+	const amountOfTransactions = 1_000_000_000
 	const max = 1_000_000
-	const partsCount = 10
 
-	transactions := make([]transaction, amountOfTransactions)
+	transactions := make([]Transaction, amountOfTransactions)
 
 	for index := range transactions {
 		transactions[index].Amount = int64(rand.Intn(max))
+		//transactions[index].Amount = 1
 		rand.Seed(int64(time.Now().Nanosecond()))
-		transactions[index].Moment = time.Date(2020, time.Month(rand.Intn(11)+1), rand.Intn(29)+1, rand.Intn(22)+1, rand.Intn(58)+1, rand.Intn(58)+1, 0, time.UTC)
+		transactions[index].Moment = time.Date(2019, time.Month(rand.Intn(11)), rand.Intn(30), rand.Intn(23), rand.Intn(59), rand.Intn(59), 0, time.UTC)
 	}
 
-	fmt.Println(transactions)
+	var m = make(map[time.Month][]*Transaction)
+
+	for i := range transactions {
+		m[transactions[i].Moment.Month()] = append(m[transactions[i].Moment.Month()], &transactions[i])
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(m))
+
+	for month := time.Month(1); month <= time.Month(12); month++ {
+		//fmt.Println(month, m[month])
+		k := month
+		if m[month] != nil {
+			go func() {
+				sum := Sum(m[k])
+				fmt.Println(k, sum)
+				wg.Done()
+			}()
+		}
+	}
+	wg.Wait()
+
 }
 
-//func sum (transactions []int64) int64 {
-//	result := int64(0)
-//	for _, transaction := range transactions {
-//		result += transaction
-//	}
-//	return result
-//}
-//
-//func SumConcurrently (transactions []int64, goroutines int) int64 {
-//	wg := sync.WaitGroup{}
-//	wg.Add(goroutines)
-//	total := int64(0)
-//	partSize := len(transactions)/goroutines
-//	for i := 0; i < goroutines; i++ {
-//		part := transactions[i*partSize : (i+1)* partSize]
-//		go func() {
-//			fmt.Println("start")
-//			total += sum(part)
-//			wg.Done()
-//		}()
-//	}
-//
-//	wg.Wait()
-//	return total
-//}
+func Sum(transactions []*Transaction) int64 {
+	result := int64(0)
+	for _, transaction := range transactions {
+		result += transaction.Amount
+	}
+	return result
+}
