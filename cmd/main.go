@@ -28,7 +28,7 @@ func main() {
 	}
 	defer trace.Stop()
 
-	const amountOfTransactions = 1_000_000_000
+	const amountOfTransactions = 1_000_000_0
 	const max = 1_000_000
 
 	transactions := make([]Transaction, amountOfTransactions)
